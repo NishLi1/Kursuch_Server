@@ -1,0 +1,17 @@
+package main.Enums;
+
+public enum RequestType {
+    REGISTER,
+    LOGIN,
+    UPDATE_PROFILE,
+    SEARCH_PRODUCTS,
+    GET_DIARY,
+    ADD_FOOD_ENTRY,
+    GET_ANALYSIS,
+    GENERATE_REPORT,
+    SAVE_PRODUCT,
+    DELETE_PRODUCT,
+    GET_ALL_PRODUCTS,
+    GET_ALL_USERS,
+    UPDATE_USER_ROLE
+}
