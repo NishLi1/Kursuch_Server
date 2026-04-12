@@ -1,22 +1,23 @@
 package main.DataAccessObjects;
 
-import main.Models.Entities.User;
-import main.Utility.HibernateUtil;
+import main.Models.Entities.Product;
+import main.Models.Entities.ProductNutrient;
 import main.Interface.DAO;
+import main.Utility.HibernateUtil;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 
 import java.util.List;
 
-public class UserDAO implements DAO<User> {
+public class ProductDAO implements DAO<Product> {
 
     @Override
-    public void save(User user) {
+    public void save(Product product) {
         Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         try {
             tx = session.beginTransaction();
-            session.save(user);
+            session.save(product);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -27,12 +28,12 @@ public class UserDAO implements DAO<User> {
     }
 
     @Override
-    public void update(User user) {
+    public void update(Product product) {
         Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         try {
             tx = session.beginTransaction();
-            session.update(user);
+            session.update(product);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -43,12 +44,12 @@ public class UserDAO implements DAO<User> {
     }
 
     @Override
-    public void delete(User user) {
+    public void delete(Product product) {
         Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         try {
             tx = session.beginTransaction();
-            session.delete(user);
+            session.delete(product);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -59,40 +60,49 @@ public class UserDAO implements DAO<User> {
     }
 
     @Override
-    public User findById(int id) {
+    public Product findById(int id) {
         Session session = HibernateUtil.getSessionFactory().openSession();
-        User user = session.get(User.class, id);
+        Product product = session.get(Product.class, id);
         session.close();
-        return user;
+        return product;
     }
 
     @Override
-    public List<User> findAll() {
+    public List<Product> findAll() {
         Session session = HibernateUtil.getSessionFactory().openSession();
-        List<User> users = session.createQuery("FROM User", User.class).getResultList();
+        List<Product> products = session.createQuery("FROM Product", Product.class).getResultList();
         session.close();
-        return users;
+        return products;
     }
 
-    // Поиск по логину
-    public User findByLogin(String login) {
+    // Поиск продуктов по названию
+    public List<Product> search(String query) {
         Session session = HibernateUtil.getSessionFactory().openSession();
-        User user = session.createQuery("FROM User WHERE login = :login", User.class)
-                .setParameter("login", login)
-                .uniqueResult();
+        List<Product> products = session.createQuery("FROM Product WHERE name LIKE :query", Product.class)
+                .setParameter("query", "%" + query + "%")
+                .getResultList();
         session.close();
-        return user;
+        return products;
     }
 
-    // ← Этот метод используется в UserService для авторизации
-    public User findByLoginAndPasswordHash(String login, String passwordHash) {
+    // Сохранение продукта вместе с его нутриентами
+    public void saveWithNutrients(Product product) {
         Session session = HibernateUtil.getSessionFactory().openSession();
-        User user = session.createQuery(
-                        "FROM User WHERE login = :login AND passwordHash = :passwordHash", User.class)
-                .setParameter("login", login)
-                .setParameter("passwordHash", passwordHash)
-                .uniqueResult();
-        session.close();
-        return user;
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            session.save(product);
+
+            for (ProductNutrient pn : product.getNutrients()) {
+                pn.setProduct(product);           // важная связь
+                session.save(pn);
+            }
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            e.printStackTrace();
+        } finally {
+            session.close();
+        }
     }
 }

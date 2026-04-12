@@ -1,6 +1,6 @@
 package main.DataAccessObjects;
 
-import main.Models.Entities.User;
+import main.Models.Entities.Category;
 import main.Utility.HibernateUtil;
 import main.Interface.DAO;
 import org.hibernate.Session;
@@ -8,15 +8,15 @@ import org.hibernate.Transaction;
 
 import java.util.List;
 
-public class UserDAO implements DAO<User> {
+public class CategoryDAO implements DAO<Category> {
 
     @Override
-    public void save(User user) {
+    public void save(Category category) {
         Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         try {
             tx = session.beginTransaction();
-            session.save(user);
+            session.save(category);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -27,12 +27,12 @@ public class UserDAO implements DAO<User> {
     }
 
     @Override
-    public void update(User user) {
+    public void update(Category category) {
         Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         try {
             tx = session.beginTransaction();
-            session.update(user);
+            session.update(category);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -43,12 +43,12 @@ public class UserDAO implements DAO<User> {
     }
 
     @Override
-    public void delete(User user) {
+    public void delete(Category category) {
         Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         try {
             tx = session.beginTransaction();
-            session.delete(user);
+            session.delete(category);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -59,40 +59,18 @@ public class UserDAO implements DAO<User> {
     }
 
     @Override
-    public User findById(int id) {
+    public Category findById(int id) {
         Session session = HibernateUtil.getSessionFactory().openSession();
-        User user = session.get(User.class, id);
+        Category category = session.get(Category.class, id);
         session.close();
-        return user;
+        return category;
     }
 
     @Override
-    public List<User> findAll() {
+    public List<Category> findAll() {
         Session session = HibernateUtil.getSessionFactory().openSession();
-        List<User> users = session.createQuery("FROM User", User.class).getResultList();
+        List<Category> categories = session.createQuery("FROM Category", Category.class).getResultList();
         session.close();
-        return users;
-    }
-
-    // Поиск по логину
-    public User findByLogin(String login) {
-        Session session = HibernateUtil.getSessionFactory().openSession();
-        User user = session.createQuery("FROM User WHERE login = :login", User.class)
-                .setParameter("login", login)
-                .uniqueResult();
-        session.close();
-        return user;
-    }
-
-    // ← Этот метод используется в UserService для авторизации
-    public User findByLoginAndPasswordHash(String login, String passwordHash) {
-        Session session = HibernateUtil.getSessionFactory().openSession();
-        User user = session.createQuery(
-                        "FROM User WHERE login = :login AND passwordHash = :passwordHash", User.class)
-                .setParameter("login", login)
-                .setParameter("passwordHash", passwordHash)
-                .uniqueResult();
-        session.close();
-        return user;
+        return categories;
     }
 }

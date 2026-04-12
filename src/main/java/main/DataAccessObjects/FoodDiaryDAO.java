@@ -1,22 +1,23 @@
 package main.DataAccessObjects;
 
-import main.Models.Entities.User;
+import main.Models.Entities.FoodDiary;
 import main.Utility.HibernateUtil;
 import main.Interface.DAO;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 
+import java.time.LocalDate;
 import java.util.List;
 
-public class UserDAO implements DAO<User> {
+public class FoodDiaryDAO implements DAO<FoodDiary> {
 
     @Override
-    public void save(User user) {
+    public void save(FoodDiary diary) {
         Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         try {
             tx = session.beginTransaction();
-            session.save(user);
+            session.save(diary);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -27,12 +28,12 @@ public class UserDAO implements DAO<User> {
     }
 
     @Override
-    public void update(User user) {
+    public void update(FoodDiary diary) {
         Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         try {
             tx = session.beginTransaction();
-            session.update(user);
+            session.update(diary);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -43,12 +44,12 @@ public class UserDAO implements DAO<User> {
     }
 
     @Override
-    public void delete(User user) {
+    public void delete(FoodDiary diary) {
         Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         try {
             tx = session.beginTransaction();
-            session.delete(user);
+            session.delete(diary);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -59,40 +60,30 @@ public class UserDAO implements DAO<User> {
     }
 
     @Override
-    public User findById(int id) {
+    public FoodDiary findById(int id) {
         Session session = HibernateUtil.getSessionFactory().openSession();
-        User user = session.get(User.class, id);
+        FoodDiary diary = session.get(FoodDiary.class, id);
         session.close();
-        return user;
+        return diary;
     }
 
     @Override
-    public List<User> findAll() {
+    public List<FoodDiary> findAll() {
         Session session = HibernateUtil.getSessionFactory().openSession();
-        List<User> users = session.createQuery("FROM User", User.class).getResultList();
+        List<FoodDiary> diaries = session.createQuery("FROM FoodDiary", FoodDiary.class).getResultList();
         session.close();
-        return users;
+        return diaries;
     }
 
-    // Поиск по логину
-    public User findByLogin(String login) {
+    // Важный метод — получить дневник пользователя за дату
+    public FoodDiary findByUserAndDate(int userId, LocalDate date) {
         Session session = HibernateUtil.getSessionFactory().openSession();
-        User user = session.createQuery("FROM User WHERE login = :login", User.class)
-                .setParameter("login", login)
+        FoodDiary diary = session.createQuery(
+                        "FROM FoodDiary WHERE user.id = :userId AND date = :date", FoodDiary.class)
+                .setParameter("userId", userId)
+                .setParameter("date", date)
                 .uniqueResult();
         session.close();
-        return user;
-    }
-
-    // ← Этот метод используется в UserService для авторизации
-    public User findByLoginAndPasswordHash(String login, String passwordHash) {
-        Session session = HibernateUtil.getSessionFactory().openSession();
-        User user = session.createQuery(
-                        "FROM User WHERE login = :login AND passwordHash = :passwordHash", User.class)
-                .setParameter("login", login)
-                .setParameter("passwordHash", passwordHash)
-                .uniqueResult();
-        session.close();
-        return user;
+        return diary;
     }
 }
