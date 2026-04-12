@@ -1,6 +1,6 @@
 package main;
 
-import main.Server.ClientHandler;
+import main.Utility.ClientThread;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -31,7 +31,7 @@ public class Main {
                 System.out.println("Клиент подключился: " +
                         socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
 
-                clientHandler = new ClientTread(socket);
+                clientHandler = new ClientThread(socket);
                 thread = new Thread(clientHandler);
                 thread.start();
             }

@@ -1,6 +1,5 @@
-package main.Models.Entity;
+package main.Models.Entities;
 
-import main.Enums.Roles;
 import javax.persistence.*;
 import java.io.Serializable;
 
@@ -10,6 +9,7 @@ public class User implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private int id;
 
     @Column(name = "login", unique = true, nullable = false)
@@ -21,18 +21,14 @@ public class User implements Serializable {
     @Column(name = "email", unique = true)
     private String email;
 
-    @Column(name = "role_id")
-    private String role;
-
-    @Enumerated(EnumType.STRING)
-    @Transient
-    private Roles roleEnum;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "role_id", nullable = false)
+    private Role role;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private UserProfile userProfile;
 
     public User() {}
-
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -46,17 +42,8 @@ public class User implements Serializable {
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
-    public String getRole() { return role; }
-    public void setRole(String role) {
-        this.role = role;
-        this.roleEnum = Roles.valueOf(role);
-    }
-
-    public Roles getRoleEnum() { return roleEnum; }
-    public void setRoleEnum(Roles roleEnum) {
-        this.roleEnum = roleEnum;
-        this.role = roleEnum != null ? roleEnum.name() : null;
-    }
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 
     public UserProfile getUserProfile() { return userProfile; }
     public void setUserProfile(UserProfile userProfile) { this.userProfile = userProfile; }
