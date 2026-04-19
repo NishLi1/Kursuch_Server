@@ -12,8 +12,8 @@ public class UserProfile implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @OneToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
     @Column(name = "date_of_birth")
@@ -31,7 +31,7 @@ public class UserProfile implements Serializable {
     @Column(name = "activity_level")
     private Double activityLevel;
 
-    @OneToOne(mappedBy = "profile", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "profile", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private NutritionNorms nutritionNorms;
 
     public UserProfile() {}

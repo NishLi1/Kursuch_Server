@@ -9,26 +9,36 @@ public class FoodEntry implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private int id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "diary_id", nullable = false)
     private FoodDiary diary;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
     @Column(name = "weight")
     private Double weight;
 
-    // Вычисляемые поля (заполняются на сервере при запросе дневника)
+    @Transient
     private Double calories;
+    @Transient
     private Double proteins;
+    @Transient
     private Double fats;
+    @Transient
     private Double carbs;
 
     public FoodEntry() {}
+
+    // Конструктор для создания записи
+    public FoodEntry(Product product, Double weight) {
+        this.product = product;
+        this.weight = weight;
+    }
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -53,4 +63,13 @@ public class FoodEntry implements Serializable {
 
     public Double getCarbs() { return carbs; }
     public void setCarbs(Double carbs) { this.carbs = carbs; }
+
+    @Override
+    public String toString() {
+        return "FoodEntry{" +
+                "id=" + id +
+                ", product=" + (product != null ? product.getName() : "null") +
+                ", weight=" + weight +
+                '}';
+    }
 }

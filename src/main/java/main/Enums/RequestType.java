@@ -4,6 +4,7 @@ public enum RequestType {
     REGISTER,
     LOGIN,
     UPDATE_PROFILE,
+    GET_PROFILE,
     SEARCH_PRODUCTS,
     GET_DIARY,
     ADD_FOOD_ENTRY,

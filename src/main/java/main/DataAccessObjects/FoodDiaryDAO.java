@@ -5,6 +5,7 @@ import main.Utility.HibernateUtil;
 import main.Interface.DAO;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import main.Models.Entities.User;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -54,6 +55,50 @@ public class FoodDiaryDAO implements DAO<FoodDiary> {
         } catch (Exception e) {
             if (tx != null) tx.rollback();
             e.printStackTrace();
+        } finally {
+            session.close();
+        }
+    }
+
+    /**
+     * Возвращает существующий дневник пользователя за дату или создаёт новый
+     */
+    public FoodDiary getOrCreateDiary(int userId, LocalDate date) {
+        Session session = HibernateUtil.getSessionFactory().openSession();
+        Transaction tx = null;
+
+        try {
+            tx = session.beginTransaction();
+
+            // Ищем дневник за указанную дату
+            FoodDiary diary = session.createQuery(
+                            "FROM FoodDiary fd " +
+                                    "WHERE fd.user.id = :userId AND fd.date = :date", FoodDiary.class)
+                    .setParameter("userId", userId)
+                    .setParameter("date", date)
+                    .uniqueResult();
+
+            if (diary != null) {
+                tx.commit();
+                return diary;
+            }
+
+            // Создаём новый дневник
+            diary = new FoodDiary();
+            diary.setUser(session.get(User.class, userId));   // загружаем пользователя
+            diary.setDate(date);
+
+            session.save(diary);
+            tx.commit();
+
+            System.out.println("✅ Создан новый дневник для пользователя " + userId + " на дату " + date);
+            return diary;
+
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            e.printStackTrace();
+            System.err.println("❌ Ошибка при получении/создании дневника: " + e.getMessage());
+            return null;
         } finally {
             session.close();
         }

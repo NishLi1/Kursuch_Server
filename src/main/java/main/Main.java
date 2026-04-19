@@ -5,48 +5,30 @@ import main.Utility.ClientThread;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Main {
 
-    private static final int PORT_NUMBER = 5555;
-    private static ServerSocket serverSocket;
-    private static ClientThread clientHandler;
-    private static Thread thread;
-    private static final List<Socket> currentSockets = new ArrayList<>();
+    private static final int PORT = 5555;
 
     public static void main(String[] args) {
-        try {
-            serverSocket = new ServerSocket(PORT_NUMBER);
-            System.out.println("✅ Сервер успешно запущен на порту " + PORT_NUMBER);
+
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
 
             while (true) {
-                // Очистка закрытых сокетов (безопасно)
-                currentSockets.removeIf(Socket::isClosed);
-
                 Socket socket = serverSocket.accept();
-                currentSockets.add(socket);
 
-                System.out.println("Клиент подключился: " +
-                        socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
+                System.out.println("Новый клиент подключился: "
+                        + socket.getInetAddress().getHostAddress()
+                        + ":" + socket.getPort());
 
-                clientHandler = new ClientThread(socket);
-                thread = new Thread(clientHandler);
-                thread.start();
+                // Запускаем обработчик клиента в отдельном потоке
+                ClientThread clientThread = new ClientThread(socket);
+                new Thread(clientThread).start();
             }
 
         } catch (IOException e) {
-            System.err.println("Ошибка запуска сервера: " + e.getMessage());
+            System.err.println("Ошибка работы сервера: " + e.getMessage());
             e.printStackTrace();
-        } finally {
-            try {
-                if (serverSocket != null && !serverSocket.isClosed()) {
-                    serverSocket.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
     }
 }

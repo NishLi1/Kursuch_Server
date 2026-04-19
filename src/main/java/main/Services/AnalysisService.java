@@ -4,9 +4,11 @@ import main.Models.Entities.FoodEntry;
 import main.Models.Entities.NutritionNorms;
 import main.Models.Entities.UserProfile;
 import main.Models.Entities.FoodDiary;
+import main.Models.AnalysisItem;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.ArrayList;
 
 public class AnalysisService {
 
@@ -88,5 +90,42 @@ public class AnalysisService {
         }
 
         return sb.toString();
+    }
+
+    public List<AnalysisItem> getDayAnalysisAsItems(int userId, LocalDate date) {
+        AnalysisResult result = analyzeDay(userId, date);
+        List<AnalysisItem> items = new ArrayList<>();
+
+        items.add(new AnalysisItem("Калории",
+                Math.round(result.getConsumedCalories()) + " ккал",
+                Math.round(result.getNorms().getCalories()) + " ккал",
+                Math.round(result.getCaloriesPercent()) + "%",
+                getStatus(result.getCaloriesPercent())));
+
+        items.add(new AnalysisItem("Белки",
+                Math.round(result.getConsumedProteins()) + " г",
+                Math.round(result.getNorms().getProteins()) + " г",
+                Math.round(result.getProteinsPercent()) + "%",
+                getStatus(result.getProteinsPercent())));
+
+        items.add(new AnalysisItem("Жиры",
+                Math.round(result.getConsumedFats()) + " г",
+                Math.round(result.getNorms().getFats()) + " г",
+                Math.round(result.getFatsPercent()) + "%",
+                getStatus(result.getFatsPercent())));
+
+        items.add(new AnalysisItem("Углеводы",
+                Math.round(result.getConsumedCarbs()) + " г",
+                Math.round(result.getNorms().getCarbs()) + " г",
+                Math.round(result.getCarbsPercent()) + "%",
+                getStatus(result.getCarbsPercent())));
+
+        return items;
+    }
+
+    private String getStatus(double percent) {
+        if (percent < 70) return "Недостаток";
+        if (percent > 130) return "Избыток";
+        return "Норма";
     }
 }
