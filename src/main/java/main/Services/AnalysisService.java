@@ -1,9 +1,6 @@
 package main.Services;
 
-import main.Models.Entities.FoodEntry;
-import main.Models.Entities.NutritionNorms;
-import main.Models.Entities.UserProfile;
-import main.Models.Entities.FoodDiary;
+import main.Models.Entities.*;
 import main.Models.AnalysisItem;
 
 import java.time.LocalDate;
@@ -19,28 +16,31 @@ public class AnalysisService {
      * Основной метод анализа рациона за день
      */
     public AnalysisResult analyzeDay(int userId, LocalDate date) {
-        // Получаем дневник и нормы
         FoodDiary diary = diaryService.getOrCreateDiary(userId, date);
         List<FoodEntry> entries = diaryService.getEntriesForDate(userId, date);
 
         UserProfile profile = diary.getUser().getUserProfile();
         NutritionNorms norms = nutritionService.calculateNorms(profile);
 
-        // Считаем фактически съеденное
         double totalCalories = 0;
         double totalProteins = 0;
         double totalFats = 0;
         double totalCarbs = 0;
 
         for (FoodEntry entry : entries) {
-            // Предполагаем, что в FoodEntry уже есть рассчитанные нутриенты на вес порции
-            totalCalories += entry.getCalories() != null ? entry.getCalories() : 0;
-            totalProteins += entry.getProteins() != null ? entry.getProteins() : 0;
-            totalFats += entry.getFats() != null ? entry.getFats() : 0;
-            totalCarbs += entry.getCarbs() != null ? entry.getCarbs() : 0;
+            if (entry.getProduct() == null || entry.getWeight() == null || entry.getWeight() <= 0) {
+                continue;
+            }
+
+            Product p = entry.getProduct();
+            double factor = entry.getWeight() / 100.0;
+
+            totalCalories += p.getCalories() * factor;
+            totalProteins += p.getProteins() * factor;
+            totalFats += p.getFats() * factor;
+            totalCarbs += p.getCarbs() * factor;
         }
 
-        // Создаём результат анализа
         AnalysisResult result = new AnalysisResult();
         result.setDate(date);
         result.setNorms(norms);
@@ -49,13 +49,11 @@ public class AnalysisService {
         result.setConsumedFats(totalFats);
         result.setConsumedCarbs(totalCarbs);
 
-        // Заполняем процент выполнения норм
         result.setCaloriesPercent(calculatePercent(totalCalories, norms.getCalories()));
         result.setProteinsPercent(calculatePercent(totalProteins, norms.getProteins()));
         result.setFatsPercent(calculatePercent(totalFats, norms.getFats()));
         result.setCarbsPercent(calculatePercent(totalCarbs, norms.getCarbs()));
 
-        // Генерируем простые рекомендации
         result.setRecommendations(generateRecommendations(result));
 
         return result;

@@ -84,15 +84,4 @@ public class UserDAO implements DAO<User> {
         return user;
     }
 
-    // ← Этот метод используется в UserService для авторизации
-    public User findByLoginAndPasswordHash(String login, String passwordHash) {
-        Session session = HibernateUtil.getSessionFactory().openSession();
-        User user = session.createQuery(
-                        "FROM User WHERE login = :login AND passwordHash = :passwordHash", User.class)
-                .setParameter("login", login)
-                .setParameter("passwordHash", passwordHash)
-                .uniqueResult();
-        session.close();
-        return user;
-    }
 }

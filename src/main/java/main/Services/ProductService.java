@@ -34,18 +34,16 @@ public class ProductService {
         if (product.getName() == null || product.getName().trim().isEmpty()) {
             throw new RuntimeException("Название продукта не может быть пустым");
         }
-        productDAO.saveWithNutrients(product);
+        productDAO.saveOrUpdateWithNutrients(product);   // теперь один метод
     }
 
-    /**
-     * Обновить существующий продукт
-     */
     public void updateProduct(Product product) {
         if (product.getId() == 0) {
             throw new RuntimeException("Нельзя обновить продукт без ID");
         }
-        productDAO.update(product);
+        productDAO.saveOrUpdateWithNutrients(product);   // теперь один метод
     }
+
 
     /**
      * Удалить продукт (только для админа)

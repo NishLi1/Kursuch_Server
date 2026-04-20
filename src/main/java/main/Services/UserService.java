@@ -5,7 +5,7 @@ import main.DataAccessObjects.UserProfileDAO;
 import main.Models.Entities.Role;
 import main.Models.Entities.User;
 import main.Models.Entities.UserProfile;
-import main.Utility.HibernateUtil;
+import main.Utility.*;
 import org.hibernate.Session;
 
 import java.util.List;
@@ -32,6 +32,9 @@ public class UserService {
             // 3. Устанавливаем двустороннюю связь ДО сохранения
             profile.setUser(user);
             user.setUserProfile(profile);
+
+            // Хэшируем пароль перед сохранением
+            user.setPasswordHash(PasswordUtils.hashPassword(user.getPasswordHash()));
 
             // 4. Сохраняем User (UserProfile сохранится каскадом благодаря CascadeType.ALL)
             userDAO.save(user);
@@ -86,11 +89,17 @@ public class UserService {
     /**
      * Авторизация пользователя
      */
-    public User login(String login, String passwordHash) {
-        User user = userDAO.findByLoginAndPasswordHash(login, passwordHash);
+    public User login(String login, String plainPassword) {
+        User user = userDAO.findByLogin(login);
         if (user == null) {
             throw new RuntimeException("Неверный логин или пароль");
         }
+
+        // Проверяем хэш
+        if (!PasswordUtils.checkPassword(plainPassword, user.getPasswordHash())) {
+            throw new RuntimeException("Неверный логин или пароль");
+        }
+
         return user;
     }
 

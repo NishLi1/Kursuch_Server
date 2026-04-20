@@ -27,6 +27,7 @@ public class ClientThread implements Runnable {
     private final ProductService productService = new ProductService();
     private final FoodDiaryService foodDiaryService = new FoodDiaryService();
     private final AnalysisService analysisService = new AnalysisService();
+    private final ReportService reportService = new ReportService();
 
 
     private User currentUser;
@@ -77,8 +78,6 @@ public class ClientThread implements Runnable {
                     return handleLogin(request);
                 case GET_ALL_USERS:
                     return handleGetAllUsers();
-                case UPDATE_USER_ROLE:
-                    return handleUpdateUserRole(request);
                 case UPDATE_PROFILE:
                     return handleUpdateProfile(request);
                 case GET_PROFILE:
@@ -92,10 +91,15 @@ public class ClientThread implements Runnable {
                 case GET_ANALYSIS:
                     return handleGetAnalysis(request);
                 case GENERATE_REPORT:
+                    return handleGenerateReport(request);
                 case SAVE_PRODUCT:
+                    return handleSaveProduct(request);
                 case DELETE_PRODUCT:
+                    return handleDeleteProduct(request);
                 case GET_ALL_PRODUCTS:
-                    return new Response(ResponseStatus.ERROR, request.getRequestType() + " пока не реализован", null);
+                    return handleGetAllProducts();
+                case UPDATE_USER_ROLE:
+                    return handleUpdateUserRole(request);
 
                 default:
                     return new Response(ResponseStatus.ERROR, "Неизвестный тип запроса", null);
@@ -370,18 +374,205 @@ public class ClientThread implements Runnable {
         }
     }
 
-    private Response handleGetAllUsers() {
+    // ==================== GENERATE_REPORT ====================
+    private Response handleGenerateReport(Request request) {
         try {
-            List<User> users = userService.getAllUsers();
-            return new Response(ResponseStatus.OK, "Список пользователей", gson.toJson(users));
+            if (currentUser == null) {
+                return new Response(ResponseStatus.ERROR, "Пользователь не авторизован", null);
+            }
+
+            // Парсим дату из сообщения
+            LocalDate date = LocalDate.parse(request.getRequestMessage().trim());
+
+            String reportText = reportService.generateDailyReport(currentUser.getId(), date);
+
+            System.out.println("✅ Отчёт за " + date + " сформирован для пользователя ID=" + currentUser.getId());
+
+            return new Response(ResponseStatus.OK, "Отчёт успешно сформирован", reportText);
+
         } catch (Exception e) {
-            return new Response(ResponseStatus.ERROR, e.getMessage(), null);
+            e.printStackTrace();
+            return new Response(ResponseStatus.ERROR, "Ошибка формирования отчёта: " + e.getMessage(), null);
         }
     }
 
+    /**
+     * Получить все продукты (для админки)
+     */
+    private Response handleGetAllProducts() {
+        try {
+            if (currentUser == null || currentUser.getRole() == null ||
+                    (!"ADMIN".equalsIgnoreCase(currentUser.getRole().getName()) &&
+                            !"EMPLOYEE".equalsIgnoreCase(currentUser.getRole().getName()))) {
+                return new Response(ResponseStatus.ERROR, "Нет прав доступа", null);
+            }
+
+            List<Product> products = productService.getAllProducts();
+
+            // Очищаем от Hibernate-прокси
+            List<Product> cleanProducts = new ArrayList<>();
+            for (Product p : products) {
+                Product clean = new Product();
+                clean.setId(p.getId());
+                clean.setName(p.getName());
+
+                if (p.getCategory() != null) {
+                    Category cat = new Category();
+                    cat.setId(p.getCategory().getId());
+                    cat.setName(p.getCategory().getName());
+                    clean.setCategory(cat);
+                }
+
+                // Копируем нутриенты
+                if (p.getNutrients() != null) {
+                    List<ProductNutrient> cleanNutrients = new ArrayList<>();
+                    for (ProductNutrient pn : p.getNutrients()) {
+                        if (pn.getNutrient() != null) {
+                            ProductNutrient cleanPn = new ProductNutrient();
+                            cleanPn.setAmount(pn.getAmount());
+
+                            Nutrient cleanNutrient = new Nutrient();
+                            cleanNutrient.setId(pn.getNutrient().getId());
+                            cleanNutrient.setName(pn.getNutrient().getName());
+                            cleanNutrient.setUnit(pn.getNutrient().getUnit());
+                            cleanPn.setNutrient(cleanNutrient);
+
+                            cleanNutrients.add(cleanPn);
+                        }
+                    }
+                    clean.setNutrients(cleanNutrients);
+                }
+                cleanProducts.add(clean);
+            }
+
+            return new Response(ResponseStatus.OK, "Список продуктов", gson.toJson(cleanProducts));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Response(ResponseStatus.ERROR, "Ошибка получения продуктов: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * Сохранить/обновить продукт (SAVE_PRODUCT)
+     * Принимает JSON объекта Product
+     */
+    private Response handleSaveProduct(Request request) {
+        try {
+            if (currentUser == null || currentUser.getRole() == null ||
+                    (!"ADMIN".equalsIgnoreCase(currentUser.getRole().getName()) &&
+                            !"EMPLOYEE".equalsIgnoreCase(currentUser.getRole().getName()))) {
+                return new Response(ResponseStatus.ERROR, "Нет прав доступа", null);
+            }
+
+            Product product = gson.fromJson(request.getRequestMessage(), Product.class);
+
+            if (product.getId() == 0) {
+                // Новый продукт
+                productService.addProduct(product);
+                return new Response(ResponseStatus.OK, "Продукт успешно добавлен", null);
+            } else {
+                // Обновление существующего
+                productService.updateProduct(product);
+                return new Response(ResponseStatus.OK, "Продукт успешно обновлён", null);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Response(ResponseStatus.ERROR, "Ошибка сохранения продукта: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * Удалить продукт (DELETE_PRODUCT)
+     * Принимает JSON: {"id": 123}
+     */
+    private Response handleDeleteProduct(Request request) {
+        try {
+            if (currentUser == null || !"ADMIN".equalsIgnoreCase(currentUser.getRole().getName())) {
+                return new Response(ResponseStatus.ERROR, "Только администратор может удалять продукты", null);
+            }
+
+            java.util.Map<String, Object> data = gson.fromJson(request.getRequestMessage(),
+                    new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>(){}.getType());
+
+            int productId = ((Double) data.get("id")).intValue();
+
+            productService.deleteProduct(productId);
+
+            return new Response(ResponseStatus.OK, "Продукт успешно удалён", null);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Response(ResponseStatus.ERROR, "Ошибка удаления продукта: " + e.getMessage(), null);
+        }
+    }
+
+    // ==================== GET_ALL_USERS ====================
+    private Response handleGetAllUsers() {
+        try {
+            List<User> users = userService.getAllUsers();
+
+            // === ОЧИЩАЕМ объекты от Hibernate-прокси и циклических ссылок ===
+            List<User> cleanUsers = new ArrayList<>();
+            for (User u : users) {
+                User clean = new User();
+                clean.setId(u.getId());
+                clean.setLogin(u.getLogin());
+                clean.setEmail(u.getEmail());
+
+                // Только имя роли (без объекта)
+                if (u.getRole() != null) {
+                    Role cleanRole = new Role();
+                    cleanRole.setId(u.getRole().getId());
+                    cleanRole.setName(u.getRole().getName());
+                    clean.setRole(cleanRole);
+                }
+
+                // Не отправляем UserProfile (чтобы не было циклических ссылок)
+                clean.setUserProfile(null);
+
+                cleanUsers.add(clean);
+            }
+
+            System.out.println("✅ Загружено " + cleanUsers.size() + " пользователей для админа");
+
+            return new Response(ResponseStatus.OK, "Список пользователей", gson.toJson(cleanUsers));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Response(ResponseStatus.ERROR, "Ошибка получения списка пользователей: " + e.getMessage(), null);
+        }
+    }
+
+    // ==================== UPDATE_USER_ROLE ====================
     private Response handleUpdateUserRole(Request request) {
-        // Пример JSON: {"userId": 5, "role": "EMPLOYEE"}
-        // Можно доработать позже
-        return new Response(ResponseStatus.ERROR, "UPDATE_USER_ROLE пока не реализован полностью", null);
+        try {
+            if (currentUser == null || currentUser.getRole() == null ||
+                    !"ADMIN".equalsIgnoreCase(currentUser.getRole().getName())) {
+                return new Response(ResponseStatus.ERROR, "Только администратор может менять роли пользователей", null);
+            }
+
+            // Парсим JSON
+            java.util.Map<String, Object> data = gson.fromJson(request.getRequestMessage(),
+                    new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>(){}.getType());
+
+            int userId = ((Double) data.get("userId")).intValue();
+            String newRoleName = (String) data.get("role");
+
+            if (newRoleName == null || newRoleName.trim().isEmpty()) {
+                return new Response(ResponseStatus.ERROR, "Не указана новая роль", null);
+            }
+
+            userService.changeUserRole(userId, newRoleName.trim().toUpperCase());
+
+            System.out.println("✅ Роль пользователя ID=" + userId + " изменена на " + newRoleName.toUpperCase() + " (админ: " + currentUser.getLogin() + ")");
+
+            return new Response(ResponseStatus.OK, "Роль успешно изменена", null);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Response(ResponseStatus.ERROR, "Ошибка смены роли: " + e.getMessage(), null);
+        }
     }
 }

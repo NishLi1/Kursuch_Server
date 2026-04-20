@@ -1,7 +1,6 @@
 package main.DataAccessObjects;
 
-import main.Models.Entities.Product;
-import main.Models.Entities.ProductNutrient;
+import main.Models.Entities.*;
 import main.Interface.DAO;
 import main.Utility.HibernateUtil;
 import org.hibernate.Session;
@@ -85,24 +84,82 @@ public class ProductDAO implements DAO<Product> {
         return products;
     }
 
-    // Сохранение продукта вместе с его нутриентами
-    public void saveWithNutrients(Product product) {
+    public void saveOrUpdateWithNutrients(Product product) {
         Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         try {
             tx = session.beginTransaction();
-            session.save(product);
 
-            for (ProductNutrient pn : product.getNutrients()) {
-                pn.setProduct(product);           // важная связь
-                session.save(pn);
+            // === 1. Категория ===
+            if (product.getCategory() != null) {
+                Category category = findOrCreateCategory(session, product.getCategory().getName());
+                product.setCategory(category);
             }
+
+            // === 2. Если редактирование — удаляем старые нутриенты ===
+            if (product.getId() != 0) {
+                session.createQuery("DELETE FROM ProductNutrient WHERE product.id = :pid")
+                        .setParameter("pid", product.getId())
+                        .executeUpdate();
+            }
+
+            // === 3. Сохраняем/обновляем нутриенты ===
+            if (product.getNutrients() != null) {
+                for (ProductNutrient pn : product.getNutrients()) {
+                    if (pn.getNutrient() != null && pn.getNutrient().getName() != null) {
+                        Nutrient nutrient = findOrCreateNutrient(
+                                session,
+                                pn.getNutrient().getName(),
+                                pn.getNutrient().getUnit(),
+                                pn.getNutrient().getType()
+                        );
+                        pn.setNutrient(nutrient);
+                        pn.setProduct(product);           // важная связь
+                        session.save(pn);                 // сохраняем связь
+                    }
+                }
+            }
+
+            // === 4. Сохраняем/обновляем сам продукт ===
+            session.saveOrUpdate(product);
+
             tx.commit();
+            System.out.println("✅ Продукт " + (product.getId() == 0 ? "добавлен" : "обновлён") + ": " + product.getName());
+
         } catch (Exception e) {
             if (tx != null) tx.rollback();
             e.printStackTrace();
+            throw new RuntimeException("Ошибка сохранения продукта: " + e.getMessage());
         } finally {
             session.close();
         }
+    }
+
+    private Category findOrCreateCategory(Session session, String name) {
+        Category cat = session.createQuery("FROM Category WHERE name = :name", Category.class)
+                .setParameter("name", name)
+                .uniqueResult();
+
+        if (cat == null) {
+            cat = new Category();
+            cat.setName(name);
+            session.save(cat);
+        }
+        return cat;
+    }
+
+    private Nutrient findOrCreateNutrient(Session session, String name, String unit, String type) {
+        Nutrient nut = session.createQuery("FROM Nutrient WHERE name = :name", Nutrient.class)
+                .setParameter("name", name)
+                .uniqueResult();
+
+        if (nut == null) {
+            nut = new Nutrient();
+            nut.setName(name);
+            nut.setUnit(unit);
+            nut.setType(type);
+            session.save(nut);
+        }
+        return nut;
     }
 }
