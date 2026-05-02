@@ -7,6 +7,7 @@ import org.hibernate.Session;
 import org.hibernate.Transaction;
 
 import java.util.List;
+import java.util.ArrayList;
 
 public class ProductDAO implements DAO<Product> {
 
@@ -90,46 +91,74 @@ public class ProductDAO implements DAO<Product> {
         try {
             tx = session.beginTransaction();
 
-            // === 1. Категория ===
-            if (product.getCategory() != null) {
-                Category category = findOrCreateCategory(session, product.getCategory().getName());
-                product.setCategory(category);
+            // 1. Разрешаем категорию (по имени)
+            if (product.getCategory() != null && product.getCategory().getName() != null) {
+                Category cat = session.createQuery(
+                                "FROM Category c WHERE c.name = :name", Category.class)
+                        .setParameter("name", product.getCategory().getName().trim())
+                        .uniqueResult();
+
+                if (cat == null) {
+                    cat = new Category();
+                    cat.setName(product.getCategory().getName().trim());
+                    session.save(cat);
+                }
+                product.setCategory(cat);
             }
 
-            // === 2. Если редактирование — удаляем старые нутриенты ===
+            // 2. Если редактируем — удаляем старые связи нутриентов
             if (product.getId() != 0) {
-                session.createQuery("DELETE FROM ProductNutrient WHERE product.id = :pid")
+                session.createQuery("DELETE FROM ProductNutrient pn WHERE pn.product.id = :pid")
                         .setParameter("pid", product.getId())
                         .executeUpdate();
             }
 
-            // === 3. Сохраняем/обновляем нутриенты ===
+            // 3. Разрешаем/создаём нутриенты и создаём чистые ProductNutrient
+            List<ProductNutrient> resolvedNutrients = new ArrayList<>();
             if (product.getNutrients() != null) {
                 for (ProductNutrient pn : product.getNutrients()) {
-                    if (pn.getNutrient() != null && pn.getNutrient().getName() != null) {
-                        Nutrient nutrient = findOrCreateNutrient(
-                                session,
-                                pn.getNutrient().getName(),
-                                pn.getNutrient().getUnit(),
-                                pn.getNutrient().getType()
-                        );
-                        pn.setNutrient(nutrient);
-                        pn.setProduct(product);           // важная связь
-                        session.save(pn);                 // сохраняем связь
+                    if (pn.getNutrient() == null || pn.getNutrient().getName() == null) continue;
+
+                    Nutrient nut = session.createQuery(
+                                    "FROM Nutrient n WHERE n.name = :name", Nutrient.class)
+                            .setParameter("name", pn.getNutrient().getName().trim())
+                            .uniqueResult();
+
+                    if (nut == null) {
+                        nut = new Nutrient();
+                        nut.setName(pn.getNutrient().getName().trim());
+                        nut.setUnit(pn.getNutrient().getUnit());
+                        nut.setType(pn.getNutrient().getType());
+                        session.save(nut);
                     }
+
+                    // Создаём чистую связь
+                    ProductNutrient newPn = new ProductNutrient();
+                    newPn.setNutrient(nut);
+                    newPn.setProduct(product);
+                    newPn.setAmount(pn.getAmount());
+                    resolvedNutrients.add(newPn);
                 }
             }
 
-            // === 4. Сохраняем/обновляем сам продукт ===
-            session.saveOrUpdate(product);
+            // 4. Привязываем resolved нутриенты к продукту
+            product.getNutrients().clear();           // очищаем старый список
+            product.getNutrients().addAll(resolvedNutrients);
+
+            // 5. Сохраняем/обновляем продукт (каскадно сохранит ProductNutrient)
+            if (product.getId() == 0) {
+                session.save(product);
+            } else {
+                session.update(product);
+            }
 
             tx.commit();
-            System.out.println("✅ Продукт " + (product.getId() == 0 ? "добавлен" : "обновлён") + ": " + product.getName());
+            System.out.println("✅ Продукт успешно сохранён: " + product.getName());
 
         } catch (Exception e) {
             if (tx != null) tx.rollback();
             e.printStackTrace();
-            throw new RuntimeException("Ошибка сохранения продукта: " + e.getMessage());
+            throw new RuntimeException("Ошибка сохранения продукта: " + e.getMessage(), e);
         } finally {
             session.close();
         }
@@ -158,8 +187,13 @@ public class ProductDAO implements DAO<Product> {
             nut.setName(name);
             nut.setUnit(unit);
             nut.setType(type);
-            session.save(nut);
+
+            session.save(nut);      // сохраняем
+            session.flush();        // принудительно фиксируем в БД
+            session.refresh(nut);   // обновляем состояние объекта
+            System.out.println("✅ Создан новый Nutrient: " + name);
         }
         return nut;
     }
+
 }

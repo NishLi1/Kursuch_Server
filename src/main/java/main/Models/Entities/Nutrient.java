@@ -8,22 +8,23 @@ import java.io.Serializable;
 public class Nutrient implements Serializable {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
-    private int id;
+    private Integer id;
 
-    @Column(name = "name")
+    @Column(name = "name", nullable = false)
     private String name;
 
     @Column(name = "unit")
     private String unit;
 
     @Column(name = "type")
-    private String type;        // "macro" или "micro"
+    private String type;
 
     public Nutrient() {}
 
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

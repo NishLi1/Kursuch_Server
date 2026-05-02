@@ -59,28 +59,48 @@ public class AnalysisService {
         return result;
     }
 
+    /**
+     * Расчёт процента выполнения нормы (теперь может быть > 100%)
+     */
     private double calculatePercent(double consumed, double norm) {
-        if (norm == 0) return 0;
-        return Math.min(100.0, (consumed / norm) * 100);
+        if (norm <= 0) return 0;
+        return (consumed / norm) * 100;   // ← ИСПРАВЛЕНО: убрали Math.min(100)
     }
 
+    /**
+     * Генерация рекомендаций (улучшена согласованность с getStatus)
+     */
     private String generateRecommendations(AnalysisResult result) {
         StringBuilder sb = new StringBuilder();
 
-        if (result.getCaloriesPercent() > 110) {
+        // Калории
+        if (result.getCaloriesPercent() > 130) {
+            sb.append("• Сильное превышение калорийности. Рекомендуется уменьшить порции.\n");
+        } else if (result.getCaloriesPercent() > 110) {
             sb.append("• Превышение калорийности. Рекомендуется уменьшить порции.\n");
         } else if (result.getCaloriesPercent() < 70) {
             sb.append("• Недостаток калорий. Добавьте больше продуктов.\n");
         }
 
+        // Белки
         if (result.getProteinsPercent() < 80) {
             sb.append("• Мало белка. Добавьте мясо, рыбу, творог или бобовые.\n");
+        } else if (result.getProteinsPercent() > 150) {
+            sb.append("• Значительное превышение белка.\n");
         }
+
+        // Жиры
         if (result.getFatsPercent() < 70) {
             sb.append("• Мало жиров. Добавьте орехи, авокадо или растительные масла.\n");
+        } else if (result.getFatsPercent() > 140) {
+            sb.append("• Превышение жиров. Рекомендуется уменьшить жирные продукты.\n");
         }
-        if (result.getCarbsPercent() > 120) {
-            sb.append("• Слишком много углеводов. Сократите сладкое и мучное.\n");
+
+        // Углеводы
+        if (result.getCarbsPercent() > 130) {
+            sb.append("• Слишком много углеводов. Сократите сладкое, мучное и крупы.\n");
+        } else if (result.getCarbsPercent() < 70) {
+            sb.append("• Недостаток углеводов.\n");
         }
 
         if (sb.length() == 0) {

@@ -255,6 +255,7 @@ public class ClientThread implements Runnable {
                             cleanNutrient.setId(pn.getNutrient().getId());
                             cleanNutrient.setName(pn.getNutrient().getName());
                             cleanNutrient.setUnit(pn.getNutrient().getUnit());
+                            cleanNutrient.setType(pn.getNutrient().getType());
                             cleanPn.setNutrient(cleanNutrient);
 
                             cleanNutrients.add(cleanPn);
@@ -396,9 +397,6 @@ public class ClientThread implements Runnable {
         }
     }
 
-    /**
-     * Получить все продукты (для админки)
-     */
     private Response handleGetAllProducts() {
         try {
             if (currentUser == null || currentUser.getRole() == null ||
@@ -453,10 +451,6 @@ public class ClientThread implements Runnable {
         }
     }
 
-    /**
-     * Сохранить/обновить продукт (SAVE_PRODUCT)
-     * Принимает JSON объекта Product
-     */
     private Response handleSaveProduct(Request request) {
         try {
             if (currentUser == null || currentUser.getRole() == null ||
@@ -483,10 +477,6 @@ public class ClientThread implements Runnable {
         }
     }
 
-    /**
-     * Удалить продукт (DELETE_PRODUCT)
-     * Принимает JSON: {"id": 123}
-     */
     private Response handleDeleteProduct(Request request) {
         try {
             if (currentUser == null || !"ADMIN".equalsIgnoreCase(currentUser.getRole().getName())) {
